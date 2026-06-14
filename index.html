@@ -1,0 +1,1068 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Instant Pay for GigShifts - Integration Workflows</title>
+<style>
+  :root {
+    /* Branch Green Palette */
+    --primary: #185E38;
+    --primary-hover: #124A2C;
+    --primary-light: #E7F2EA;
+    --primary-border: #CBE2D2;
+    --mint: #8FE0B2;
+    --forest-900: #0B1C12;
+
+    /* Pure Neutral Grays (No Blue Tones) */
+    --gray-900: #111827;
+    --gray-800: #1F2937;
+    --gray-700: #374151;
+    --gray-600: #4B5563;
+    --gray-500: #6B7280;
+    --gray-400: #9CA3AF;
+    --gray-300: #D1D5DB;
+    --gray-200: #E5E7EB;
+    --gray-50:  #F9FAFB;
+
+    /* Semantic Colors */
+    --amber-500: #F59E0B;
+    --amber-50:  #FFFBEB;
+    --red-500: #EF4444;
+
+    /* Globals */
+    --bg: #FFFFFF;
+    --card: #FFFFFF;
+    --ink: var(--gray-900);
+    --ink-light: var(--gray-500);
+    --border: var(--gray-200);
+
+    /* Code Highlighting Palette */
+    --code-bg: #0B1120;
+    --code-text: #F8FAFC;
+    --k: #8FE0B2; /* Keys */
+    --s: #93C5FD; /* Strings */
+    --n: #FDBA74; /* Numbers */
+    --b: #FCA5A5; /* Booleans */
+    --z: #9CA3AF; /* Null/Comments */
+  }
+
+  * { box-sizing: border-box; }
+
+  /* Lock the body to exactly the viewport size */
+  html, body { margin: 0; padding: 0; width: 100vw; height: 100vh; overflow: hidden; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-size: 16px; line-height: 1.6; color: var(--ink); background: var(--bg);
+    -webkit-font-smoothing: antialiased;
+  }
+  code, pre, .mono { font-family: "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace; }
+
+  /* Full Screen App Shell */
+  .shell { display: flex; height: 100vh; width: 100vw; }
+
+  /* ============ Sidebar ============ */
+  .rail {
+    width: 260px; height: 100vh; flex-shrink: 0; background: var(--forest-900); color: var(--gray-300);
+    display: flex; flex-direction: column; padding: 32px 0 24px; border-right: 1px solid var(--forest-900);
+  }
+  .rail-brand { padding: 0 24px 32px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+  .logo-container { display: flex; align-items: center; gap: 8px; }
+  .logo-icon { width: 28px; height: 28px; background: var(--mint); border-radius: 6px; display: flex; align-items: center; justify-content: center; font-weight: bold; color: var(--primary); font-size: 18px; line-height: 1;}
+  .wordmark { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; color: #fff; }
+  .rail-brand small { display: block; margin-top: 8px; font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--gray-400); font-weight: 600; }
+
+  .rail-steps { flex: 1; padding: 24px 0; overflow-y: auto; }
+  .rstep {
+    display: flex; align-items: center; gap: 12px; width: 100%; text-align: left;
+    background: none; border: none; color: var(--gray-400); cursor: pointer;
+    padding: 12px 24px; font-size: 13.5px; font-weight: 500; font-family: inherit;
+    border-left: 3px solid transparent; transition: all 0.2s;
+  }
+  .rstep:hover { color: #fff; background: rgba(255,255,255,0.05); }
+  .rstep .rn {
+    width: 22px; height: 22px; border-radius: 50%; flex-shrink: 0;
+    border: 1px solid var(--gray-600); display: flex; align-items: center; justify-content: center;
+    font-size: 10px; font-weight: 700; font-family: "SF Mono", monospace; color: var(--gray-400);
+    transition: 0.2s;
+  }
+  .rstep.done .rn { background: var(--primary); border-color: var(--primary); color: #fff; }
+  .rstep.on { color: #fff; border-left-color: var(--mint); background: rgba(255,255,255,0.08); }
+  .rstep.on .rn { border-color: var(--mint); color: var(--mint); }
+
+  .rail-foot { padding: 24px 24px 0; border-top: 1px solid rgba(255,255,255,0.1); font-size: 11px; line-height: 1.8; color: var(--gray-500); }
+  .rail-foot .mono { color: var(--gray-300); font-size: 10.5px; }
+
+  /* ============ Main Stage ============ */
+  .main { flex: 1; display: flex; flex-direction: column; height: 100vh; min-width: 0; background: var(--bg); }
+
+  /* Stage area scrolls independently */
+  .stage { flex: 1; padding: 56px 72px 56px; overflow-y: auto; }
+
+  .screen { display: none; animation: fadeUp 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
+  .screen.on { display: block; }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+
+  .kicker { font-size: 12px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--primary); margin: 0 0 12px; }
+  h1 { font-size: 38px; line-height: 1.1; font-weight: 800; letter-spacing: -1px; margin: 0 0 16px; color: var(--gray-900); }
+  h2 { font-size: 28px; line-height: 1.2; font-weight: 700; letter-spacing: -0.5px; margin: 0; color: var(--gray-900); }
+  .lede { font-size: 18px; color: var(--ink-light); margin: 16px 0 0; max-width: 65ch; }
+
+  .head-row { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+  .who { font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; padding: 6px 12px; border-radius: 999px; white-space: nowrap; }
+  .who-gs { background: var(--primary-light); color: var(--primary); border: 1px solid var(--primary-border); }
+  .who-br { background: var(--gray-800); color: var(--gray-200); }
+
+  /* ============ Layout Containers ============ */
+  .cols { display: grid; grid-template-columns: 1.3fr 1fr; gap: 36px; margin-top: 40px; align-items: start; }
+  .label { font-size: 12px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--gray-500); margin: 0 0 12px; }
+  .col-dark .label { color: var(--gray-400); }
+
+  /* Mock App Frame (Left) */
+  .frame { background: var(--card); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -1px rgba(0,0,0,0.03); }
+  .frame-bar { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--border); background: var(--gray-50); font-size: 13px; color: var(--gray-500); font-weight: 500; }
+  .frame-bar .pips { display: flex; gap: 6px; }
+  .frame-bar .pips i { width: 10px; height: 10px; border-radius: 50%; background: var(--gray-300); display: block; }
+  .frame-body { padding: 32px; }
+
+  /* Form Elements */
+  .f-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .f { margin-bottom: 16px; }
+  .f label { display: block; font-size: 13px; font-weight: 600; color: var(--gray-600); margin-bottom: 6px; }
+  .f .v { border: 1px solid var(--border); background: var(--gray-50); border-radius: 6px; padding: 10px 14px; font-size: 15px; color: var(--gray-800); }
+  .f input { width: 100%; border: 1px solid var(--border); background: #fff; border-radius: 6px; padding: 10px 14px; font-size: 15px; color: var(--gray-900); font-family: inherit; }
+  .f input:focus { outline: 2px solid var(--primary); outline-offset: -1px; }
+
+  .cta {
+    width: 100%; margin-top: 12px; background: var(--primary); color: #fff; border: none; cursor: pointer;
+    font-size: 15px; font-weight: 600; padding: 14px 16px; border-radius: 8px;
+    transition: all 0.2s; box-shadow: 0 1px 3px rgba(24, 94, 56, 0.3);
+  }
+  .cta:hover { background: var(--primary-hover); transform: translateY(-1px); box-shadow: 0 4px 6px rgba(24, 94, 56, 0.2); }
+  .cta:active { transform: translateY(0); }
+  .cta:disabled { background: var(--mint); color: var(--forest-900); cursor: default; transform: none; box-shadow: none; }
+
+  /* Dark Code Column (Right) */
+  .col-dark { background: var(--gray-900); border-radius: 12px; padding: 24px; color: var(--code-text); box-shadow: inset 0 1px 0 rgba(255,255,255,0.1); }
+  .req-line { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; }
+  .verb { font-size: 12px; font-weight: 700; letter-spacing: 1px; padding: 4px 10px; border-radius: 4px; background: var(--primary); color: #fff; }
+  .req-line .url { font-size: 14px; color: var(--gray-300); word-break: break-all; }
+  .meta { font-size: 13px; color: var(--gray-500); margin: 0; }
+  .meta b { color: var(--gray-300); font-weight: 600; }
+
+  .cap { font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--gray-500); margin: 24px 0 8px; }
+  .cap:first-child { margin-top: 0; }
+  pre.code {
+    background: var(--code-bg); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px;
+    padding: 16px; margin: 0; overflow: auto; font-size: 13.5px; line-height: 1.6; color: var(--code-text);
+  }
+
+  .col-dark .jk { color: var(--k); } .col-dark .js { color: var(--s); } .col-dark .jn { color: var(--n); } .col-dark .jb { color: var(--b); } .col-dark .jz { color: var(--z); font-style: italic; }
+
+  .waiting { padding: 48px 24px; text-align: center; font-size: 15px; color: var(--gray-500); border: 1px dashed var(--gray-700); border-radius: 8px; }
+  .waiting b { color: var(--mint); font-weight: 600; }
+
+  /* Takeaway Footer */
+  .takeaway { margin-top: 40px; display: flex; gap: 24px; align-items: flex-start; border-top: 1px solid var(--border); padding-top: 24px; background: var(--card); padding: 24px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+  .takeaway .tlabel { flex-shrink: 0; font-size: 12px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--gray-800); width: 140px; }
+  .takeaway ul { margin: 0; padding: 0; list-style: none; flex: 1; }
+  .takeaway li { margin: 0 0 10px; padding-left: 24px; position: relative; font-size: 15px; color: var(--gray-700); }
+  .takeaway li::before { content: "→"; position: absolute; left: 0; top: 0; color: var(--primary); font-weight: bold; }
+  .takeaway li:last-child { margin-bottom: 0; }
+  .takeaway li b { color: var(--gray-900); font-weight: 600; }
+
+  /* Executive Hook Specifics */
+  .hook-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 32px; }
+  .hook-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 28px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
+  .hook-card h3 { margin: 0 0 20px; font-size: 18px; color: var(--gray-900); }
+  .state-block { background: var(--gray-50); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin-bottom: 16px; }
+  .state-item { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 12px; font-size: 15px; }
+  .state-item:last-child { margin-bottom: 0; }
+  .state-badge { padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; }
+  .badge-curr { background: var(--gray-200); color: var(--gray-700); }
+  .badge-fut { background: var(--primary-light); color: var(--primary); border: 1px solid var(--primary-border);}
+
+  .check-list { list-style: none; padding: 0; margin: 0; }
+  .check-list li { margin-bottom: 16px; font-size: 15px; color: var(--gray-700); display: flex; align-items: flex-start; gap: 10px; }
+  .check-list li::before { content: "✓"; color: var(--primary); font-weight: bold; }
+
+  /* Setup screen pieces */
+  .checklist { margin: 0; padding: 0; list-style: none; counter-reset: c; }
+  .checklist li { counter-increment: c; display: flex; gap: 16px; padding: 16px 0; border-bottom: 1px solid var(--border); font-size: 15px; align-items: flex-start; }
+  .checklist li:last-child { border-bottom: none; }
+  .checklist li::before {
+    content: counter(c); width: 24px; height: 24px; border-radius: 50%; flex-shrink: 0;
+    background: var(--primary-light); color: var(--primary); font-size: 12px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center; font-family: monospace; border: 1px solid var(--primary-border);
+  }
+  .checklist .sub { display: block; font-size: 13px; color: var(--gray-500); margin-top: 4px; }
+
+  /* Webhook timeline */
+  .timeline { list-style: none; margin: 0; padding: 0; }
+  .timeline li { position: relative; padding: 0 0 28px 44px; }
+  .timeline li:last-child { padding-bottom: 0; }
+  .timeline li::before { content: ""; position: absolute; left: 14px; top: 32px; bottom: 0; width: 2px; background: var(--gray-200); }
+  .timeline li:last-child::before { display: none; }
+  .timeline li.hit::before { background: var(--primary); }
+  .tdot {
+    position: absolute; left: 0; top: 0; width: 30px; height: 30px; border-radius: 50%;
+    background: #fff; border: 2px solid var(--gray-300);
+    display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: var(--gray-500);
+  }
+  .timeline li.hit .tdot { background: var(--primary); border-color: var(--primary); color: #fff; }
+  .timeline li.now .tdot { box-shadow: 0 0 0 4px var(--primary-light); }
+  .tname { font-family: monospace; font-size: 14px; font-weight: 700; word-break: break-word; color: var(--gray-900); }
+  .timeline li:not(.hit) .tname { color: var(--gray-500); }
+  .tdesc { font-size: 14px; color: var(--gray-600); margin-top: 4px; }
+  .tact { font-size: 13px; color: var(--primary); font-weight: 600; margin-top: 6px; background: var(--primary-light); padding: 6px 10px; border-radius: 6px; display: inline-block;}
+  .gate { display: inline-block; margin: 6px 0 4px; font-size: 10px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; color: #fff; background: var(--amber-500); padding: 4px 10px; border-radius: 999px; }
+
+  .tl-nav { display: flex; gap: 12px; margin-top: 24px; }
+  .ghost {
+    background: #fff; border: 1px solid var(--gray-300); color: var(--gray-700); cursor: pointer;
+    font-size: 14px; font-weight: 600; padding: 10px 18px; border-radius: 6px; transition: 0.2s; box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+  }
+  .ghost:hover { border-color: var(--gray-400); background: var(--gray-50); }
+  .ghost:disabled { opacity: 0.5; cursor: default; box-shadow: none; }
+
+  .toggle { display: inline-flex; border: 1px solid var(--gray-700); border-radius: 6px; overflow: hidden; background: var(--gray-800); }
+  .toggle button { background: transparent; border: none; color: var(--gray-400); font-family: inherit; font-size: 12px; font-weight: 600; padding: 6px 12px; cursor: pointer; }
+  .toggle button.on { background: var(--gray-700); color: #fff; }
+
+  /* Failure panel */
+  details.fail { margin-top: 24px; border: 1px solid var(--gray-200); border-radius: 8px; background: var(--gray-50); }
+  details.fail summary { cursor: pointer; list-style: none; padding: 16px 20px; font-size: 15px; font-weight: 600; color: var(--gray-800); display: flex; align-items: center; gap: 8px; }
+  details.fail summary::-webkit-details-marker { display: none; }
+  details.fail summary::before { content: "▸"; color: var(--gray-400); }
+  details.fail[open] summary::before { content: "▾"; }
+  .fail-body { padding: 0 20px 20px; }
+  table.rc { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 16px; background: #fff; }
+  table.rc th, table.rc td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--gray-200); }
+  table.rc th { background: var(--gray-50); font-size: 11px; letter-spacing: 1px; text-transform: uppercase; color: var(--gray-500); }
+  table.rc td:first-child { font-family: monospace; color: var(--red-500); font-weight: 600;}
+
+  /* Next Steps Timeline */
+  .journey-list { margin: 24px 0 0; padding: 0; list-style: none; border-left: 2px solid var(--border); margin-left: 12px; }
+  .journey-list li { position: relative; padding: 0 0 24px 24px; }
+  .journey-list li:last-child { padding-bottom: 0; }
+  .journey-list li::before {
+    content: ""; position: absolute; left: -7px; top: 4px; width: 12px; height: 12px;
+    border-radius: 50%; background: #fff; border: 3px solid var(--primary);
+  }
+  .journey-title { font-weight: 700; font-size: 16px; color: var(--gray-900); margin-bottom: 4px; }
+  .journey-desc { font-size: 15px; color: var(--gray-600); }
+
+  /* Permanently Docked Footer */
+  .foot {
+    flex-shrink: 0; display: flex; align-items: center; justify-content: space-between;
+    padding: 24px 72px; border-top: 1px solid var(--border); background: #fff;
+  }
+  .nav {
+    font-size: 15px; font-weight: 600; padding: 12px 32px; border-radius: 8px; cursor: pointer;
+    border: 1px solid var(--border); background: #fff; color: var(--gray-700); transition: 0.2s; box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+  }
+  .nav:hover { border-color: var(--gray-300); background: var(--gray-50); }
+  .nav.fwd { background: var(--primary); border-color: var(--primary); color: #fff; }
+  .nav.fwd:hover { background: var(--primary-hover); }
+  .nav.hide { visibility: hidden; }
+  .nav:disabled { opacity: 0.4; cursor: default; }
+  .foot .pos { font-size: 13px; color: var(--gray-500); font-weight: 500; }
+
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <aside class="rail">
+    <div class="rail-brand">
+      <div class="logo-container">
+        <div class="logo-icon">B</div>
+        <div class="wordmark">Branch</div>
+      </div>
+      <small>GigShifts Live Walkthrough</small>
+    </div>
+    <nav class="rail-steps" id="rail">
+      <button class="rstep" data-go="0"><span class="rn">B</span>Executive Overview</button>
+      <button class="rstep" data-go="1"><span class="rn">01</span>Getting Started</button>
+      <button class="rstep" data-go="2"><span class="rn">02</span>Create Employee</button>
+      <button class="rstep" data-go="3"><span class="rn">03</span>Embed Branch Direct</button>
+      <button class="rstep" data-go="4"><span class="rn">04</span>Listen for Webhooks</button>
+      <button class="rstep" data-go="5"><span class="rn">05</span>Create a Disbursement</button>
+      <button class="rstep" data-go="6"><span class="rn">06</span>Funds Flow</button>
+      <button class="rstep" data-go="7"><span class="rn">07</span>Technical Lift</button>
+      <button class="rstep" data-go="8"><span class="rn">08</span>Next Steps</button>
+    </nav>
+    <!-- <div class="rail-foot">
+      Sandbox org <span class="mono">100458</span><br>
+      Worker <span class="mono">GS-10042</span><br>
+      Host <span class="mono">sandbox.branchapp.com</span>
+    </div> -->
+  </aside>
+
+  <div class="main">
+
+    <div class="stage" id="stage">
+
+      <section class="screen on" id="p0">
+        <p class="kicker">Executive Overview</p>
+        <h1>Instant Pay for GigShifts</h1>
+        <p class="lede">Mapping the business goal of competitive instant payouts to the minimal technical lift of the Branch API integration.</p>
+
+        <div class="takeaway" style="margin-top: 24px; background: var(--primary-light); border: 1px solid var(--primary-border);">
+          <span class="tlabel" style="color: var(--primary);">Meeting Alignment</span>
+          <ul>
+            <li><strong>Audience:</strong> GigShifts Executive and Engineering Team (CTO, PM, CFO)</li>
+            <li><strong>Objective:</strong> Walk through each step of the integration process, from API setup through disbursement, so your team can accurately scope the technical lift and plan the work.</li>
+            <li><strong>Today's Agenda:</strong> API authentication and sandbox setup, worker onboarding via embedded portal, webhook events and lifecycle, disbursement flow, funds settlement, and a summary of the total technical lift including next steps.</li>
+          </ul>
+        </div>
+
+
+        <div style="display:grid; grid-template-columns: 1fr; gap: 24px; margin-top: 32px;">
+          <div class="hook-card" style="border-top: 4px solid var(--primary);">
+            <h3 style="color: var(--primary);">GigShifts Context</h3>
+            <ul class="check-list">
+              <li>App-based gig staffing platform connecting businesses with 1099 contractors.</li>
+              <li>Currently paying workers via ACH/Direct Deposit on a weekly cadence.</li>
+              <li>In-house backend system for housing roster and payout data.</li>
+              <li>Goal: Catch up to platforms like Uber by adding instant payments as a contractor acquisition and retention benefit.</li>
+            </ul>
+          </div>
+
+          <div class="hook-card" style="border-top: 4px solid var(--mint);">
+            <h3 style="color: var(--mint);">The Business Case for Instant Pay</h3>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 0 32px;">
+              <div>
+                <p class="label">Advantages for GigShifts</p>
+                <ul class="check-list">
+                  <li>No pre-funding required. Branch pays workers first, invoices GigShifts later via ACH.</li>
+                  <li>Eliminates ACH processing costs and other payment fees.</li>
+                  <li>Branch handles W-9 collection, earnings tracking, and 1099-NEC/K issuance and delivery.</li>
+                  <li>Send payments at any time, including nights, weekends, and holidays.</li>
+                </ul>
+              </div>
+              <div>
+                <p class="label">Advantages for Contractors</p>
+                <ul class="check-list">
+                  <li>Payments right after each job, not next week.</li>
+                  <li>Fee-free banking with the Branch Wallet and Mastercard debit card.</li>
+                  <li>Available to 100% of workers, no credit checks required.</li>
+                  <li>Live customer support in English and Spanish.</li>
+                </ul>
+              </div>
+            </div>
+            <p style="font-size:13px; color:var(--gray-500); margin:16px 0 0;">80% of gig workers say they would choose one platform over another if it paid instantly and without fees. (Source: 2023 Gig Payments Report)</p>
+          </div>
+
+  <div class="takeaway" style="margin-top: 24px; background: var(--card); border: 1px solid var(--border);">
+  <span class="tlabel" style="color: var(--gray-800);">The Technical Reality</span>
+  <ul>
+    <li><strong>Embedded Onboarding:</strong> Drop a single iframe or WebView into the GigShifts app. Branch hosts all KYC, identity verification, and payout setup screens inside it.</li>
+    <li><strong>Minimal Backend Work:</strong> Three server-side API calls (create employee, listen for webhooks, disburse funds) and one client embed. No custom onboarding UI to build.</li>
+    <li><strong>Zero PII Liability:</strong> Branch collects SSN, DOB, and address directly from the worker. Sensitive data never touches GigShifts servers.</li>
+    <li><strong>Built-in Duplicate Protection:</strong> Every disbursement uses a unique external_id. If the same payment is sent twice, Branch safely ignores the duplicate.</li>
+  </ul>
+</div>
+
+        <div class="takeaway" style="margin-top: 24px; background: var(--card); border: 1px solid var(--border);">
+          <span class="tlabel" style="color: var(--gray-800);">Success Criteria</span>
+          <ul>
+            <li><strong>Product (PM):</strong> Walk away with a clear integration roadmap that can be planned into the GigShifts product backlog, including the worker onboarding experience end to end.</li>
+            <li><strong>Engineering (CTO):</strong> Understand the full security model, API technical lift, and confirm the integration can be scoped within a sprint.</li>
+            <li><strong>Finance (CFO):</strong> Confirm that Branch pays workers instantly with zero pre-funding, invoices GigShifts on pre-determined schedule, funding takes place via ACH, and handles 1099 tax compliance.</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="screen" id="p1">
+        <p class="kicker">Step 01</p>
+        <div class="head-row"><h2>Getting Started</h2><span class="who who-gs">GigShifts Executes</span></div>
+        <p class="lede">The foundation of the integration. Branch provides credentials to unlock the Sandbox API.</p>
+
+        <div class="cols">
+          <div>
+            <p class="label">Testing the API</p>
+            <div class="frame">
+              <div class="frame-bar"><span class="pips"><i></i><i></i><i></i></span>docs.branchapp.com</div>
+              <div class="frame-body">
+                <p style="margin-top:0; font-size:14px; color:var(--gray-600);">Once provisioned, use your API key to authenticate requests against the Sandbox environment.</p>
+                <div class="f">
+                  <label>API Key (Header)</label>
+                  <input type="password" value="br_sand_8f92j3n4m5lk6jh7g8f9" disabled style="background:var(--gray-50); color:var(--gray-500);">
+                </div>
+                <div class="f">
+                  <label>Environment Base URL</label>
+                  <div class="v" style="font-family:monospace; font-size:14px;">https://sandbox.branchapp.com</div>
+                </div>
+                <button class="cta" id="apiSend">Test Connection</button>
+              </div>
+            </div>
+
+          </div>
+
+          <div class="col-dark">
+            <p class="label">The Connection</p>
+            <div class="waiting" id="apiWait">Press <b>Test Connection</b> to execute request.</div>
+            <div id="apiShow" style="display:none;">
+              <div class="req-line"><span class="verb">GET</span><span class="url mono">/v1/organizations/100458</span></div>
+              <p class="cap">Headers</p>
+              <pre class="code json">apikey: &lt;secret_key&gt;</pre>
+              <p class="cap">Response · 200 OK</p>
+              <pre class="code json">{
+  "id": 100458,
+  "org_key": "gigshifts-sandbox",
+  "name": "GigShifts Sandbox"
+}</pre>
+            </div>
+          </div>
+        </div>
+
+        <div class="takeaway">
+          <span class="tlabel">What Just Happened</span>
+          <ul>
+            <li>A successful response means your API key is working. This key should only live on your servers, never in source code repositories or client-side applications.</li>
+            <li>The response returns your <b>orgId</b> (100458), which is used in all API endpoint paths. A separate <b>org UUID</b> will be provided by Branch during implementation for the portal embed URL.</li>
+          </ul>
+        </div>
+
+  <div style="margin-top: 24px;">
+  <div style="padding: 16px; background: var(--gray-50); border: 1px solid var(--border); border-radius: 8px;">
+    <h4 style="margin: 0 0 8px; font-size: 14px; color: var(--gray-900);">Developer Accelerators</h4>
+    <ul class="check-list" style="margin: 0; padding-left: 20px; font-size: 13px;">
+      <li style="margin-bottom: 8px;"><strong>OpenAPI 3.0.1 Spec:</strong> Machine-readable API specification available for code generation and client library scaffolding.</li>
+      <li style="margin-bottom: 8px;"><strong>Postman Collection:</strong> Pre-configured collection for immediate endpoint and webhook event testing.</li>
+      <li style="margin-bottom: 8px;"><strong>MCP Server:</strong> AI-assisted development via the Branch MCP server at docs.branchapp.com/mcp.</li>
+      <li style="margin-bottom: 0;"><strong>Interactive Sandbox:</strong> Full API sandbox environment for testing all integration calls.</li>
+    </ul>
+  </div>
+
+  <div style="margin-top: 16px; padding: 16px; background: var(--gray-50); border: 1px solid var(--border); border-left: 3px solid var(--primary); border-radius: 8px;">
+    <h4 style="margin: 0 0 8px; font-size: 14px; color: var(--gray-900);">Security Best Practices</h4>
+    <ul class="check-list" style="margin: 0; padding-left: 20px; font-size: 13px;">
+      <li style="margin-bottom: 8px;"><strong>Secure Key Delivery:</strong> Branch delivers API keys and webhook decryption keys through Keeper, a zero-knowledge security vault.</li>
+      <li style="margin-bottom: 8px;"><strong>Use a Key Management System:</strong> Store secret keys in an encrypted KMS. Delete any local copies after securing them.</li>
+      <li style="margin-bottom: 8px;"><strong>Never commit keys</strong> to source control or embed them in client-side applications. Inject as encrypted server-side environment variables.</li>
+      <li style="margin-bottom: 0;"><strong>Audit API logs:</strong> Monitor for suspicious activity. Contact Branch support immediately to rotate compromised keys.</li>
+    </ul>
+  </div>
+</div>
+
+      </section>
+
+      <section class="screen" id="p2">
+        <p class="kicker">Step 02</p>
+        <div class="head-row"><h2>Create Employee</h2><span class="who who-gs">GigShifts Builds</span></div>
+        <p class="lede">When a worker opts into instant pay, your backend sends one roster record to Branch.</p>
+
+        <div class="cols">
+          <div>
+            <p class="label">GigShifts Roster Data</p>
+            <div class="frame">
+              <div class="frame-bar"><span class="pips"><i></i><i></i><i></i></span>app.gigshifts.com / roster</div>
+              <div class="frame-body">
+                <div class="f"><label>Employee ID</label><div class="v">GS-10042</div></div>
+                <div class="f-row">
+                  <div class="f"><label>First Name</label><div class="v">Jane</div></div>
+                  <div class="f"><label>Last Name</label><div class="v">Martinez</div></div>
+                </div>
+                <div class="f"><label>Email</label><div class="v">jane.martinez@example.com</div></div>
+                <div class="f"><label>Phone</label><div class="v">+1 813 555 0147</div></div>
+                <button class="cta" id="ceSend">Send to Branch</button>
+              </div>
+            </div>
+          </div>
+          <div class="col-dark">
+            <p class="label">The Call</p>
+            <div class="waiting" id="ceWait">Press <b>Send to Branch</b> to execute request.</div>
+            <div id="ceShow" style="display:none;">
+              <div class="req-line"><span class="verb">POST</span><span class="url mono">/v1/organizations/100458/employees/GS-10042</span></div>
+              <p class="cap">Headers</p>
+              <pre class="code json">apikey: &lt;secret_key&gt;</pre>
+              <p class="cap">Request</p>
+              <pre class="code json">{
+  "first_name": "Jane",
+  "last_name": "Martinez",
+  "email_address": "jane.martinez@example.com",
+  "phone_number": "+18135550147",
+  "type": "HOURLY"
+}</pre>
+              <p style="font-size:12px; color:var(--gray-500); margin:8px 0 0;">Only <b>first_name</b> and <b>last_name</b> are required by the API. The <b>email</b> and <b>phone</b> fields are required because GigShifts uses Branch Direct for onboarding.</p>
+              <p class="cap">Response · 201 Created</p>
+              <pre class="code json">{
+  "id": "GS-10042",
+  "first_name": "Jane",
+  "last_name": "Martinez",
+  "state": "FL",
+  "deleted": false
+}</pre>
+            </div>
+          </div>
+        </div>
+
+        <div class="takeaway">
+          <span class="tlabel">What Just Happened</span>
+          <ul>
+            <li>GigShifts uses its own worker ID (<b>GS-10042</b>) in the URL. If you send the same worker twice, Branch updates the existing record instead of creating a duplicate.</li>
+            <li>GigShifts only sends basic contact info. <b>Branch collects the sensitive data</b> (SSN, date of birth, address) directly from the worker, so that data never touches your servers.</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="screen" id="p3">
+        <p class="kicker">Step 03</p>
+        <div class="head-row"><h2>Embed Branch Direct</h2><span class="who who-gs">GigShifts Embeds</span></div>
+        <p class="lede">GigShifts app embeds iFrame that is hosted by Branch.</p>
+
+        <div class="cols">
+          <div>
+            <p class="label">Inside the GigShifts App</p>
+            <div class="frame">
+              <div class="frame-bar"><span class="pips"><i></i><i></i><i></i></span>GigShifts App (Mobile or Web)</div>
+              <div class="frame-body">
+                <ul class="checklist">
+                  <li><div>Verify contact information<span class="sub">Branch sends a One Time Password to the phone or email provided in Step 2</span></div></li>
+                  <li><div>Identity and KYC details<span class="sub">SSN, DOB entered securely by worker within the portal</span></div></li>
+                  <li><div>Legal agreements<span class="sub">Branch terms of service, electronic communications consent, and sponsor bank disclosures</span></div></li>
+                  <li><div>Choose a payout destination<span class="sub"><b>Branch Wallet</b> (free, requires Branch app and card) or <b>existing debit card</b> (small fee, no app required)</span></div></li>
+                </ul>
+              </div>
+            </div>
+          </div>
+          <div class="col-dark">
+            <p class="label">The Embed Code</p>
+            <p class="cap">Web · iframe</p>
+            <pre class="code">&lt;<span class="js">iframe</span>
+  <span class="jk">src</span>=<span class="jn">"https://direct-sandbox.branchapp.com/?org_id=73dc7099..."</span>&gt;
+&lt;/<span class="js">iframe</span>&gt;</pre>
+            <p class="cap">Mobile · WebView URLs</p>
+            <pre class="code">Prod: https://direct.branchapp.com/?org_id={uuid}
+Stag: https://direct-stg.branchapp.com/?org_id={uuid}
+Sand: https://direct-sandbox.branchapp.com/?org_id={uuid}</pre>
+          </div>
+        </div>
+
+        <div class="takeaway">
+          <span class="tlabel">What Just Happened</span>
+          <ul>
+            <li>GigShifts drops one iframe (web) or WebView (mobile) into the app. Everything behind it, identity verification, KYC, legal agreements, and payout setup, is built and hosted by Branch.</li>
+            <li>GigShifts doesn't build any identity verification, KYC, or payout setup screens. Branch owns all of that within the embedded portal, saving your team hundreds of hours of frontend and compliance work.</li>
+            <li>After onboarding, workers who chose an existing debit card can manage their account at <b>direct.branchapp.com/login</b> without needing the Branch app.</li>
+            <li>The Branch Wallet is a digital wallet backed by a Mastercard debit card issued by an FDIC-insured sponsor bank. Workers who choose the wallet get fee-free banking, a physical or virtual card, and access to financial wellness tools via the Branch app.</li>
+            <li>Onboarding through the portal typically completes in minutes for straightforward cases. Branch can confirm exact SLAs during implementation planning.</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="screen" id="p4">
+        <p class="kicker">Step 04</p>
+        <div class="head-row"><h2>Listen for Webhooks</h2><span class="who who-gs">GigShifts Builds</span></div>
+        <p class="lede">Branch reports onboarding progress to your backend asynchronously. Step through the events as Jane completes setup.</p>
+
+        <div style="background:var(--gray-50); border:1px solid var(--border); border-radius:8px; padding:16px; margin-top:24px; margin-bottom:24px;">
+          <h4 style="margin:0 0 8px; font-size:14px; color:var(--gray-900);">Webhook Setup (coordinated with Branch during implementation)</h4>
+          <ul class="check-list" style="font-size:13px;">
+            <li style="margin-bottom:8px;">Provide your webhook endpoint URL to your Branch Customer Support rep (e.g., https://api.gigshifts.com/webhooks).</li>
+            <li style="margin-bottom:8px;">Receive the AES-256-CBC decryption key via Keeper for decoding the encrypted data block in each event.</li>
+            <li style="margin-bottom:8px;">Build a server-side POST endpoint at that URL to receive, decrypt, and process incoming events.</li>
+            <li style="margin-bottom:0;">Optional: Request Branch IP addresses for webhook delivery whitelisting.</li>
+          </ul>
+        </div>
+
+        <div class="cols">
+          <div>
+            <p class="label">Onboarding Progress</p>
+            <ul class="timeline" id="tl">
+              <li data-i="0">
+                <span class="tdot">1</span>
+                <div class="tname">ACCOUNT_VERIFIED_AS_WORKER</div>
+                <div class="tdesc">Contact info matched and verified via OTP.</div>
+                <div class="tact">Action: Allow worker to accrue wages.</div>
+              </li>
+              <li data-i="1">
+                <span class="tdot">2</span>
+                <div class="tname">WALLET_ACTIVATED</div>
+                <div class="tdesc">Fraud checks passed, wallet ready.</div>
+              </li>
+              <li data-i="2">
+                <span class="tdot">3</span>
+                <div class="tname">PAYMENT_PROFILE_ACTIVATED</div>
+                <span class="gate">Required Gate</span>
+                <div class="tdesc">A wallet or debit card is active. This is the green light: <b>no disbursements are possible until this event arrives.</b></div>
+                <div class="tact">Action: Mark worker fundable in payroll.</div>
+              </li>
+            </ul>
+            <div class="tl-nav">
+              <button class="ghost" id="evPrev" disabled>Previous Event</button>
+              <button class="ghost" id="evNext">Next Event</button>
+            </div>
+          </div>
+          <div class="col-dark">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+              <p class="label" style="margin:0;">Payload · <span id="evName" style="color:var(--mint); font-family:monospace;"></span></p>
+              <div class="toggle" id="evToggle"><button data-m="dec" class="on">Decrypted</button><button data-m="enc">Encrypted</button></div>
+            </div>
+            <pre class="code" id="evBody"></pre>
+          </div>
+        </div>
+
+        <div class="takeaway">
+          <span class="tlabel">What Just Happened</span>
+          <ul>
+            <li>GigShifts builds one webhook listener that handles all three events. The only one that gates payments is <b>PAYMENT_PROFILE_ACTIVATED</b>. Until that event arrives, the worker cannot be paid.</li>
+            <li>The outer fields (<b>event</b>, <b>event_id</b>, <b>client_type</b>, <b>client_id</b>) arrive in plaintext. Only the <b>data</b> block is encrypted using <b>AES-CBC</b> with a key provided by Branch via Keeper. Your listener can route and deduplicate before decrypting.</li>
+            <li>Branch may retry delivery, so always check the <b>event_id</b> against previously processed events to avoid handling the same webhook twice.</li>
+            <li>If delivery fails, Branch retries automatically: 30 seconds, 60 seconds, 5 minutes, 30 minutes, then every 60 minutes for up to 7 days.</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="screen" id="p5">
+        <p class="kicker">Step 05</p>
+        <div class="head-row"><h2>Create a Disbursement</h2><span class="who who-gs">GigShifts Builds</span></div>
+        <p class="lede">A shift ends, one call runs, Jane is paid. Built-in duplicate protection means the same shift can never be paid twice.</p>
+
+        <div class="cols">
+          <div>
+            <p class="label">Completed Shift</p>
+            <div class="frame">
+              <div class="frame-bar"><span class="pips"><i></i><i></i><i></i></span>Jane Martinez · GS-10042</div>
+              <div class="frame-body">
+                <div style="font-size:16px;font-weight:700;">Evening Delivery, Zone 3</div>
+                <div style="font-size:13px;color:var(--gray-500);margin-bottom:16px;">Completed June 10, 2026</div>
+                <div style="border:1px solid var(--border);border-radius:8px;overflow:hidden;">
+                  <div style="display:flex;justify-content:space-between;padding:12px 16px;font-size:15px;background:var(--gray-50);"><span>Net Pay</span><span class="mono" style="font-size:15px;font-weight:700;">$142.65</span></div>
+                </div>
+                <button class="cta" id="dbSend" style="margin-top:16px;">Send Instant Payment</button>
+              </div>
+            </div>
+          </div>
+          <div class="col-dark">
+            <p class="label">The API Call</p>
+            <div class="waiting" id="dbWait">Press <b>Send Instant Payment</b> to execute request.</div>
+            <div id="dbShow" style="display:none;">
+              <div class="req-line"><span class="verb">POST</span><span class="url mono">/v2/organizations/100458/workers/GS-10042/disbursements</span></div>
+              <p class="cap">Headers</p>
+              <pre class="code json">apikey: &lt;secret_key&gt;</pre>
+              <p class="cap">Request</p>
+              <pre class="code json">{
+  "amount": 14265,
+  "external_id": "shift-20260610-zone3-10042",
+  "type": "PAYCHECK",
+  "description": "Evening Delivery, Zone 3 - June 10"
+}</pre>
+              <p class="cap">Response · 201 · Status COMPLETED</p>
+              <pre class="code json">{
+  "worker_id": "GS-10042",
+  "amount": 14265,
+  "external_id": "shift-20260610-zone3-10042",
+  "status": "COMPLETED",
+  "payout": {
+    "payment_type": "WALLET",
+    "amount": 14265,
+    "fee": 0,
+    "org_paid_fee": 0,
+    "time_completed": "2026-06-10T23:48:12Z"
+  }
+}</pre>
+            </div>
+          </div>
+        </div>
+
+        <div class="takeaway">
+          <span class="tlabel">What Just Happened</span>
+          <ul>
+            <li>One API call paid Jane instantly. The <b>external_id</b> is a unique shift receipt that GigShifts creates. If your system sends the same one twice, whether by accident or network retry, Branch recognizes the duplicate and will not pay again.</li>
+            <li>Always check the response body's <b>status and reason_code</b> fields to determine the outcome, not the HTTP code alone.</li>
+          </ul>
+        </div>
+
+        <details class="fail">
+          <summary>When a Disbursement Fails</summary>
+          <div class="fail-body">
+            <p class="cap" style="margin-top:0;">Response · 202 · Status FAILED</p>
+            <pre class="code json">{
+  "worker_id": "GS-10042",
+  "amount": 14265,
+  "external_id": "shift-20260610-zone3-10042",
+  "type": "PAYCHECK",
+  "status": "FAILED",
+  "reason_code": "PAYMENT_PROFILE_NOT_FOUND",
+  "payout": null,
+  "time_created": "2026-06-10T23:48:11Z",
+  "time_modified": "2026-06-10T23:48:12Z"
+}</pre>
+            <p style="font-size:13px;color:var(--gray-700);margin:16px 0;">HTTP map: <b>201</b> success · <b>200</b> already completed, canceled, or reversed, no new attempt · <b>202</b> failed or pending, read the reason code · <b>400</b> bad request · <b>429</b> throttled · <b>500</b> internal error, contact Branch</p>
+            <table class="rc">
+              <thead><tr><th>Reason Code</th><th>Meaning</th><th>GigShifts Action</th></tr></thead>
+              <tbody>
+                <tr><td>WORKER_NOT_FOUND</td><td>Worker not on the active roster</td><td>Verify the ID, re-sync the roster</td></tr>
+                <tr><td>PAYMENT_PROFILE_NOT_FOUND</td><td>No destination account, onboarding incomplete</td><td>Prompt the worker to finish onboarding</td></tr>
+                <tr><td>PAYMENT_PROFILE_SUSPENDED</td><td>Destination account suspended</td><td>Contact Branch support</td></tr>
+                <tr><td>PAYMENT_PROFILE_NOT_ACTIVE</td><td>Account closed or inactive</td><td>Re-onboard the worker</td></tr>
+                <tr><td>LIKELY_MATCH_FOUND</td><td>Possible duplicate detected</td><td>Confirm it is not a double payment</td></tr>
+                <tr><td>TRANSFER_FAILED</td><td>Error issuing funds</td><td>Retry or escalate to Branch</td></tr>
+                <tr><td>PAYMENT_PROFILE_FRAUDULENT</td><td>Account closed for fraud</td><td>Contact Branch support</td></tr>
+                <tr><td>AMOUNT_EXCEEDS_ORG_SINGLE_DISBURSEMENT_LIMIT</td><td>Single transaction limit exceeded</td><td>Split into smaller disbursements or contact Branch</td></tr>
+                <tr><td>AMOUNT_EXCEEDS_ORG_DAILY_DISBURSEMENT_LIMIT</td><td>Organization daily limit reached</td><td>Wait for reset or contact Branch</td></tr>
+                <tr><td>AMOUNT_EXCEEDS_WORKER_DAILY_DISBURSEMENT_LIMIT</td><td>Worker daily limit reached</td><td>Wait for reset or contact Branch</td></tr>
+                <tr><td>UNEXPECTED_ERROR</td><td>Something unexpected occurred</td><td>Retry, escalate to Branch if persistent</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </details>
+      </section>
+
+      <section class="screen" id="p6">
+        <p class="kicker">Step 06</p>
+        <div class="head-row"><h2>Funds Flow</h2><span class="who who-br">Review</span></div>
+        <p class="lede">How GigShifts settles with Branch after instant disbursements are paid to workers.</p>
+
+        <div class="cols" style="grid-template-columns: 1fr 1fr;">
+          <div>
+            <p class="label">Disbursement Invoices</p>
+            <div class="frame">
+              <div class="frame-body">
+                <p style="margin-top:0; font-size:15px; color:var(--gray-700);">GigShifts provides a funding account to Branch. After each ACH window, Branch initiates a priority ACH pull from that account to cover all disbursements paid out during the window.</p>
+                <ul class="check-list" style="margin-top:16px;">
+                  <li>Account and routing numbers for GigShifts' funding account must be provided to Branch before disbursements go live.</li>
+                  <li>Branch pays workers instantly, then invoices GigShifts via ACH pull. No pre-funding required.</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <p class="label">ACH Pull Schedule</p>
+            <div class="frame">
+              <div class="frame-body">
+                <ul class="check-list" style="margin-bottom:16px;">
+                  <li>Invoices created before the 10:45 AM CT cutoff pull funds same-day.</li>
+                  <li>Invoices created after cutoff pull funds the next banking day.</li>
+                  <li>Banking days are every day except weekends and bank holidays.</li>
+                </ul>
+                <table class="rc" style="margin-top:0;">
+                  <thead><tr><th>Invoice Created</th><th>Funds Pulled</th></tr></thead>
+                  <tbody>
+                    <tr><td style="font-family:inherit; color:var(--gray-800); font-weight:500;">Monday 8:00 AM</td><td>Monday (same-day)</td></tr>
+                    <tr><td style="font-family:inherit; color:var(--gray-800); font-weight:500;">Monday 4:00 PM</td><td>Tuesday</td></tr>
+                    <tr><td style="font-family:inherit; color:var(--gray-800); font-weight:500;">Friday 8:00 AM</td><td>Friday (same-day)</td></tr>
+                    <tr><td style="font-family:inherit; color:var(--gray-800); font-weight:500;">Friday 4:00 PM</td><td>Monday</td></tr>
+                    <tr><td style="font-family:inherit; color:var(--gray-800); font-weight:500;">Saturday 8:00 AM</td><td>Monday</td></tr>
+                    <tr><td style="font-family:inherit; color:var(--gray-800); font-weight:500;">Saturday 4:00 PM</td><td>Monday</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="takeaway" style="margin-top: 24px;">
+          <span class="tlabel" style="color: var(--primary);">Financial Impact</span>
+          <ul>
+            <li><strong>No Pre-Funding Required:</strong> Branch provides the payments quickly without a fee, and invoices GigShifts later via ACH, preserving your working capital.</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="screen" id="p7">
+        <p class="kicker">Step 07</p>
+        <div class="head-row"><h2>Technical Lift</h2><span class="who who-br">Review</span></div>
+        <p class="lede">Four integration points. That's it. Branch gives your engineering team everything they need to ship fast.</p>
+
+        <div class="hook-cards" style="margin-top: 32px;">
+          <div class="hook-card" style="border-top: 4px solid var(--primary);">
+            <h3 style="color: var(--primary);">Your Entire Integration Footprint</h3>
+            <ul class="check-list">
+              <li>One server call to create an employee record (no PII).</li>
+              <li>One client embed (iframe or WebView) for worker onboarding.</li>
+              <li>One webhook listener (3 events, one required gate).</li>
+              <li>One server call to disburse funds instantly.</li>
+            </ul>
+          </div>
+          <div class="hook-card" style="border-top: 4px solid var(--gray-800);">
+            <h3 style="color: var(--gray-800);">What Branch Owns</h3>
+            <ul class="check-list">
+              <li style="color: var(--gray-600);">KYC, identity verification, and regulatory compliance.</li>
+              <li style="color: var(--gray-600);">Bank transfer capabilities across all 50 states.</li>
+              <li style="color: var(--gray-600);">Wallet and Mastercard debit card issuance.</li>
+              <li style="color: var(--gray-600);">Card network processing and settlement.</li>
+              <li style="color: var(--gray-600);">Fraud monitoring and dispute resolution.</li>
+              <!-- <li style="color: var(--gray-600);">KYC, identity verification, legal agreements, and payout setup UI within the embedded portal.</li> -->
+              <li style="color: var(--gray-600);">ACH invoicing and funds settlement.</li>
+              <li style="color: var(--gray-600);">Live worker support in English and Spanish, plus self-service account management via the Branch app and web portal.</li>
+            </ul>
+          </div>
+        </div>
+
+        <div style="margin-top:24px; padding:20px 28px; background:var(--card); border:1px solid var(--border); border-radius:12px; border-top: 4px solid var(--mint); box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
+          <h3 style="margin:0 0 16px; font-size:18px; color:var(--mint);">Developer Experience</h3>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px 32px;">
+            <ul class="check-list" style="margin:0;">
+              <li style="margin-bottom:8px;">Branch developer portal access with API interactivity samples for common programming languages.</li>
+              <li style="margin-bottom:8px;">OpenAPI 3.0.1 spec for code generation and client scaffolding.</li>
+              <li style="margin-bottom:8px;">Pre-configured Postman collection</li>
+            </ul>
+            <ul class="check-list" style="margin:0;">
+              <li style="margin-bottom:8px;">MCP server at docs.branchapp.com/mcp for AI-assisted development.</li>
+              <li style="margin-bottom:8px;">Secure credential delivery via Keeper with dedicated support</li>
+              <li style="margin-bottom:8px;">Structured beta period with certification testing before GA launch.</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="takeaway" style="margin-top: 24px;">
+          <span class="tlabel">What This Means for GigShifts</span>
+          <ul>
+            <li>Four endpoints, zero PII on your servers, and a full developer toolkit. Your team can be building in sandbox within days of kickoff.</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="screen" id="p8">
+        <p class="kicker">Step 08</p>
+        <div class="head-row"><h2>Next Steps</h2><span class="who who-br">Launch Plan</span></div>
+        <p class="lede">A proven, predictable path from initial kickoff to General Availability.</p>
+
+        <div style="margin-top: 40px; max-width: 700px;">
+          <ul class="journey-list">
+            <li>
+              <div class="journey-title">1. Kickoff and Technical Alignment</div>
+              <div class="journey-desc">Alignment meeting is scheduled to review key deployment dates with your Branch implementation consultant.</div>
+            </li>
+            <li>
+              <div class="journey-title">2. Sandbox Provisioning</div>
+              <div class="journey-desc">Branch provides your secure API keys for the Sandbox environment so development can begin immediately.</div>
+            </li>
+            <li>
+              <div class="journey-title">3. Certification and Testing</div>
+              <div class="journey-desc">Branch supplies test cases. Your team provides recorded demos for each scenario to certify the integration in Sandbox.</div>
+            </li>
+            <li>
+              <div class="journey-title">4. Production Keys and Beta Release</div>
+              <div class="journey-desc">Production secret keys are issued. The Beta release typically runs 2 to 3 weeks before general availability to ensure stability.</div>
+            </li>
+            <li>
+              <div class="journey-title">5. General Availability</div>
+              <div class="journey-desc">Launch instant pay to your broader workforce, driving contractor acquisition and retention.</div>
+            </li>
+          </ul>
+        </div>
+      </section>
+
+    </div>
+
+    <div class="foot">
+      <button class="nav" id="navBack">Back</button>
+      <span class="pos" id="navPos"></span>
+      <button class="nav fwd" id="navNext">Next</button>
+    </div>
+
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  // Syntax Highlighting
+  function esc(s){return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+  function hi(t){
+    t=esc(t);
+    return t.replace(
+      /("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false)\b|\bnull\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g,
+      function(m){
+        var c="jn";
+        if(/^"/.test(m)) c=/:$/.test(m)?"jk":"js";
+        else if(/true|false/.test(m)) c="jb";
+        else if(/null/.test(m)) c="jz";
+        return '<span class="'+c+'">'+m+'</span>';
+      }
+    );
+  }
+
+  var preBlocks = document.querySelectorAll("pre.code.json");
+  if(preBlocks) {
+      preBlocks.forEach(function(el){
+        el.innerHTML = hi(el.textContent);
+      });
+  }
+
+  /* Navigation Logic */
+  var total = 9;
+  var idx = 0;
+  var screens = [];
+  for(var i=0;i<total;i++){
+      var screenEl = document.getElementById("p"+i);
+      if(screenEl) screens.push(screenEl);
+  }
+
+  var rail = document.querySelectorAll("#rail .rstep");
+  var navBack = document.getElementById("navBack");
+  var navNext = document.getElementById("navNext");
+  var navPos = document.getElementById("navPos");
+  var stage = document.getElementById("stage");
+
+  function paint(){
+    if(!screens.length) return;
+
+    for(var i=0;i<total;i++){
+      if(screens[i]) screens[i].classList.toggle("on", i===idx);
+      if(rail[i]){
+          rail[i].classList.toggle("on", i===idx);
+          rail[i].classList.toggle("done", i<idx);
+      }
+    }
+
+    if(navBack) navBack.classList.toggle("hide", idx===0);
+    if(navNext) {
+        navNext.disabled = (idx===total-1);
+        navNext.textContent = (idx===total-1) ? "Finish" : "Next";
+    }
+    if(navPos) navPos.textContent = idx===0 ? "" : "Step " + idx + " of " + (total-1);
+
+    // Scroll the inner stage back to top
+    if(stage) stage.scrollTo(0,0);
+  }
+
+  function go(n){
+      idx = Math.max(0, Math.min(total-1, n));
+      paint();
+  }
+
+  if(navBack) navBack.addEventListener("click", function(){ go(idx-1); });
+  if(navNext) navNext.addEventListener("click", function(){ go(idx+1); });
+
+  if(rail) {
+      rail.forEach(function(b){
+          b.addEventListener("click", function(){
+              var target = parseInt(b.getAttribute("data-go"),10);
+              if(!isNaN(target)) go(target);
+          });
+      });
+  }
+
+  document.addEventListener("keydown", function(e){
+    // Don't hijack keys if user is typing in the input
+    if(e.target.tagName==="INPUT") return;
+    if(e.key==="ArrowRight") go(idx+1);
+    else if(e.key==="ArrowLeft") go(idx-1);
+  });
+
+  /* Interactive Elements */
+  var apiSend = document.getElementById("apiSend");
+  if(apiSend) {
+      apiSend.addEventListener("click", function(){
+        var btn = this;
+        btn.disabled = true; btn.textContent = "Connecting...";
+        setTimeout(function() {
+          btn.textContent = "✓ Connected";
+          btn.style.background = "var(--mint)";
+          btn.style.color = "var(--forest-900)";
+          document.getElementById("apiWait").style.display = "none";
+          document.getElementById("apiShow").style.display = "block";
+        }, 500);
+      });
+  }
+
+  var ceSend = document.getElementById("ceSend");
+  if(ceSend) {
+      ceSend.addEventListener("click", function(){
+        var btn = this;
+        btn.disabled = true; btn.textContent = "Sending...";
+        setTimeout(function() {
+          btn.textContent = "✓ Sent to Branch";
+          btn.style.background = "var(--mint)";
+          btn.style.color = "var(--forest-900)";
+          document.getElementById("ceWait").style.display = "none";
+          document.getElementById("ceShow").style.display = "block";
+        }, 600);
+      });
+  }
+
+  var dbSend = document.getElementById("dbSend");
+  if(dbSend) {
+      dbSend.addEventListener("click", function(){
+        var btn = this;
+        btn.disabled = true; btn.textContent = "Processing...";
+        setTimeout(function() {
+          btn.textContent = "✓ Payment Sent";
+          btn.style.background = "var(--mint)";
+          btn.style.color = "var(--forest-900)";
+          document.getElementById("dbWait").style.display = "none";
+          document.getElementById("dbShow").style.display = "block";
+        }, 750);
+      });
+  }
+
+  /* Webhook timeline */
+  var events = [
+    {
+      name:"ACCOUNT_VERIFIED_AS_WORKER",
+      eid:"c3d4e5f6-a7b8-9012-cdef-123456789012",
+      enc:"qZ3kF9d2sFh1Lq8RtVz0Wm4Yb7Nc6Ja2Df...",
+      data:'{\n  "employee_id": "GS-10042",\n  "account_number": "4819...",\n  "routing_number": "0841..."\n}'
+    },
+    {
+      name:"WALLET_ACTIVATED",
+      eid:"b2c3d4e5-f6a7-8901-bcde-f12345678901",
+      enc:"Vb7Hn2Qk9Lp4Rs1Tx6Yc0Zd3Wf8Gj5Mh2Np...",
+      data:'{\n  "employee_id": "GS-10042",\n  "onboarding_link": "https://branchapp.com/ol/..."\n}'
+    },
+    {
+      name:"PAYMENT_PROFILE_ACTIVATED",
+      eid:"e5f6a7b8-c9d0-1234-efab-345678901234",
+      enc:"Ws9Xy2Ab5Cd8Ef1Gh4Ij7Kl0Mn3Op6Qr9Sv...",
+      data:'{\n  "employee_id": "GS-10042",\n  "active_type": "WALLET",\n  "time_emitted": "2026-06-09T14:22:08-04:00"\n}'
+    }
+  ];
+  var evIdx = 0, mode = "dec";
+  var rows = document.querySelectorAll("#tl li");
+  var evBody = document.getElementById("evBody");
+  var evName = document.getElementById("evName");
+  var evPrev = document.getElementById("evPrev");
+  var evNext = document.getElementById("evNext");
+  var evToggle = document.getElementById("evToggle");
+
+  function paintEvent(){
+    if(!evName || !evBody) return;
+
+    var ev = events[evIdx], out;
+    evName.textContent = ev.name;
+    if(mode==="dec"){
+      out = '{\n  "event_id": "'+ev.eid+'",\n  "data": '+ev.data+'\n}';
+      evBody.innerHTML = hi(out);
+    } else {
+      out = '{\n  "event_id": "'+ev.eid+'",\n  "data": "'+ev.enc+'"\n}';
+      evBody.innerHTML = hi(out) + '\n<span class="jz">// AES encrypted. Decrypt with the webhook decoding key.</span>';
+    }
+
+    if(rows) {
+        rows.forEach(function(li){
+          var i = parseInt(li.getAttribute("data-i"),10);
+          li.classList.toggle("hit", i<=evIdx);
+          li.classList.toggle("now", i===evIdx);
+        });
+    }
+    if(evPrev) evPrev.disabled = (evIdx===0);
+    if(evNext) evNext.disabled = (evIdx===events.length-1);
+  }
+
+  if(evPrev) evPrev.addEventListener("click", function(){ if(evIdx>0){evIdx--; paintEvent();} });
+  if(evNext) evNext.addEventListener("click", function(){ if(evIdx<events.length-1){evIdx++; paintEvent();} });
+
+  if(evToggle) {
+      evToggle.addEventListener("click", function(e){
+        var b = e.target.closest("button"); if(!b) return;
+        mode = b.getAttribute("data-m");
+        Array.prototype.forEach.call(evToggle.children, function(x){ x.classList.toggle("on", x===b); });
+        paintEvent();
+      });
+  }
+
+  // Initialize
+  paintEvent();
+  paint();
+})();
+</script>
+</body>
+</html>
